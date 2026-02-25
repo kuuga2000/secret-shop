@@ -1,0 +1,352 @@
+Very good ✅
+Your schema is already serious production-level thinking:
+
+BIGINT identity ✔
+
+Price in cents ✔
+
+ENUM for order status ✔
+
+Proper FK with cascade ✔
+
+Order_items storing snapshot price ✔
+
+This is already better than many junior ecommerce schemas.
+
+Now let’s build:
+
+🔥 Simple first
+🧱 Good structure
+🚀 Easy to expand
+
+Using:
+Gin
+
+🎯 What We Build First
+
+Start SMALL but CLEAN:
+
+Phase 1 (Foundation)
+
+Connect PostgreSQL
+
+Product list endpoint
+
+Customer register endpoint
+
+Create order (draft)
+
+Add item to order
+
+No auth yet. No payment yet.
+
+We build correct structure first.
+
+🏗 Recommended Simple But Scalable Structure
+go-ecommerce/
+│
+├── cmd/
+│   └── api/
+│       └── main.go
+│
+├── internal/
+│   ├── config/
+│   │   └── config.go
+│   │
+│   ├── database/
+│   │   └── postgres.go
+│   │
+│   ├── domain/
+│   │   ├── customer.go
+│   │   ├── product.go
+│   │   ├── order.go
+│   │   └── order_item.go
+│   │
+│   ├── repository/
+│   │   ├── customer_repository.go
+│   │   ├── product_repository.go
+│   │   ├── order_repository.go
+│   │   └── order_item_repository.go
+│   │
+│   ├── service/
+│   │   ├── customer_service.go
+│   │   ├── product_service.go
+│   │   └── order_service.go
+│   │
+│   └── handler/
+│       ├── customer_handler.go
+│       ├── product_handler.go
+│       └── order_handler.go
+│
+├── migrations/
+├── go.mod
+└── docker-compose.yml
+
+
+This is simpler than full clean architecture,
+but still scalable.
+
+🧠 Why This Is Good For You
+
+You are learning backend deeply.
+
+If we start with full hexagonal architecture,
+it becomes too abstract.
+
+This structure:
+
+Clear separation
+
+Easy to understand
+
+Easy to expand
+
+Still production-safe
+
+Later we can refactor into domain modules.
+
+🔥 Layer Responsibilities
+domain/
+
+Only struct models.
+
+Example:
+
+package domain
+
+import "time"
+
+type Product struct {
+	ID        int64
+	Name      string
+	Slug      string
+	IsActive  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+
+No JSON tags here.
+
+Domain = pure business.
+
+repository/
+
+Talks to PostgreSQL.
+
+Uses database/sql or pgx.
+
+Example:
+
+type ProductRepository interface {
+	FindAll(ctx context.Context) ([]domain.Product, error)
+}
+
+
+Implementation uses SQL.
+
+service/
+
+Business logic.
+
+Example:
+
+Validate stock
+
+Calculate total
+
+Update order total after adding item
+
+Important: Order total must be recalculated inside service.
+
+handler/
+
+Gin layer.
+
+Only:
+
+Bind JSON
+
+Call service
+
+Return JSON
+
+Never put SQL here.
+
+🛒 Flow Example (Add Item to Order)
+
+Client calls:
+
+POST /orders/1/items
+
+
+Handler:
+
+Parse body
+
+Call orderService.AddItem()
+
+Service:
+
+Check variant exists
+
+Check stock > quantity
+
+Insert order_item
+
+Recalculate order total
+
+Update orders.total
+
+Repository:
+
+Execute SQL
+
+That’s clean.
+
+🧱 Important Architectural Rules
+1️⃣ Price ALWAYS comes from product_variants
+
+Never trust client price.
+
+2️⃣ Order total must be recalculated from order_items
+
+Never trust frontend total.
+
+3️⃣ Use transaction when:
+
+Creating order
+
+Adding item
+
+Updating total
+
+Because ecommerce = consistency critical.
+
+🚀 Expansion Later
+
+This structure easily supports:
+
+JWT auth
+
+Admin panel
+
+Inventory service
+
+Payment integration
+
+Microservices
+
+GraphQL layer
+
+You could even add GraphQL later on top of same service layer.
+
+🧠 One Important Question
+
+You chose:
+
+BIGINT identity
+
+
+Very good.
+
+But remember:
+
+BIGINT good for performance
+
+UUID better for distributed systems
+
+For now BIGINT is perfect.
+
+🎯 Next Step
+
+We should now do:
+
+Step 1
+
+Connect Gin to PostgreSQL using pgx.
+
+Step 2
+
+Build:
+GET /products
+
+Real DB query.
+
+Do you want:
+
+Use database/sql
+
+Use pgx
+
+Use GORM (ORM)
+
+For learning architecture, I recommend:
+
+👉 pgx (manual SQL, better backend skill)
+
+Tell me which one and we start coding properly.
+
+docker run --rm -it  -v "$PWD":/app -w /app golang:1.26.0-alpine3.22 sh -lc "go version && go mod tidy"
+
+docker run --rm -v "$PWD":/app -w /app --platform linux/amd64 golang:1.26.0-alpine3.22 sh -lc "go mod tidy"
+
+docker run --rm -v "$PWD":/app -w /app --platform linux/amd64 golang:1.26.0-alpine3.22 sh -c "go mod tidy"
+
+using this
+docker run --rm -v "$PWD":/app -w /app --platform linux/amd64 golang:1.26.0-alpine3.22 sh -c "go mod tidy"
+
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+now it works
+
+Great, this schema is enough to start.
+
+Use full GraphQL (query + mutation) for your first step, with these business rules:
+
+Scope V1
+
+List products
+Product detail
+Add to cart
+List cart
+Core Modeling (based on your DB)
+
+orders.status = 'draft' means cart.
+One active draft cart per customer.
+Cart items map to order_items.
+Add-to-cart should use product_variant_id (not product id), because price/stock are on variant.
+Answer to your question
+
+Product detail is not only for display.
+It should return enough payload for add-to-cart:
+product.id, name, slug
+variants: id, sku, price, stock
+Client sends variantId + quantity in mutation.
+GraphQL Shape (recommended)
+
+Queries:
+products(first, after, search, categorySlug)
+product(slug: String!)
+myCart
+Mutations:
+addToCart(variantId: ID!, quantity: Int!): Cart
+Optional next: updateCartItem, removeCartItem
+Service Logic for addToCart
+
+Find/create draft order for customer.
+Validate variant exists and stock > 0.
+If item already exists, increment quantity.
+Save line with current variant price snapshot.
+Recompute orders.total = sum(order_items.price * quantity).
+Important DB Improvements before coding
+
+Add unique draft cart constraint (one per customer):
+Partial unique index on orders(customer_id) where status=draft.
+Add indexes:
+product_variants(product_id)
+product_categories(product_id, category_id)
+orders(customer_id, status)
+order_items(order_id)
+Consider order_items.product_variant_id as NOT NULL for cart/order history integrity (recommended for ecommerce).
+If you want, next step I can draft exact GraphQL SDL + resolver/service method signatures matching your folders (domain, repository, service, handler/graphql).

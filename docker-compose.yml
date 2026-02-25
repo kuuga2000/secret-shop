@@ -1,0 +1,13 @@
+services:
+  secret_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: secret_store
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: ${APP_PORT:-8080}
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "8080:8080"
