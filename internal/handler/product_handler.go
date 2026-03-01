@@ -3,7 +3,10 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
+	"slices"
+	"strings"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -18,21 +21,15 @@ const (
 )
 
 type ProductService interface {
-	ListProducts(ctx context.Context, limit, offset int) ([]domain.Product, error)
-	GetProductByID(ctx context.Context, id int64) (domain.Product, error)
+	ListProducts(ctx context.Context, limit, offset int, fields []string) ([]domain.Product, error)
+	GetProductByID(ctx context.Context, id int64, fields []string) (domain.Product, error)
 }
 
 type ProductHandler struct {
 	service ProductService
 }
 
-type productResponse struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Slug        string `json:"slug"`
-	IsActive    bool   `json:"isActive"`
-}
+var allowedProductFields = []string{"id", "name", "description", "slug", "isActive"}
 
 func NewProductHandler(service ProductService) *ProductHandler {
 	return &ProductHandler{service: service}
@@ -59,15 +56,22 @@ func (h *ProductHandler) listProducts(c *gin.Context) {
 		return
 	}
 
-	products, err := h.service.ListProducts(c.Request.Context(), limit, offset)
+	fields, err := parseProjectedFields(c.Query("fields"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	log.Printf("debug projection: endpoint=listProducts raw_query=%q raw_fields=%q parsed_fields=%v", c.Request.URL.RawQuery, c.Query("fields"), fields)
+
+	products, err := h.service.ListProducts(c.Request.Context(), limit, offset, fields)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list products"})
 		return
 	}
 
-	payload := make([]productResponse, 0, len(products))
+	payload := make([]gin.H, 0, len(products))
 	for _, product := range products {
-		payload = append(payload, toProductResponse(product))
+		payload = append(payload, toProductResponse(product, fields))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -87,7 +91,14 @@ func (h *ProductHandler) getProductByID(c *gin.Context) {
 		return
 	}
 
-	product, err := h.service.GetProductByID(c.Request.Context(), id)
+	fields, err := parseProjectedFields(c.Query("fields"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	log.Printf("debug projection: endpoint=getProductByID product_id=%d raw_query=%q raw_fields=%q parsed_fields=%v", id, c.Request.URL.RawQuery, c.Query("fields"), fields)
+
+	product, err := h.service.GetProductByID(c.Request.Context(), id, fields)
 	if err != nil {
 		if errors.Is(err, service.ErrProductNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
@@ -97,7 +108,7 @@ func (h *ProductHandler) getProductByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": toProductResponse(product)})
+	c.JSON(http.StatusOK, gin.H{"data": toProductResponse(product, fields)})
 }
 
 func parsePositiveIntWithDefault(raw string, defaultValue int) (int, error) {
@@ -126,12 +137,53 @@ func parseNonNegativeIntWithDefault(raw string, defaultValue int) (int, error) {
 	return value, nil
 }
 
-func toProductResponse(product domain.Product) productResponse {
-	return productResponse{
-		ID:          product.ID,
-		Name:        product.Name,
-		Description: product.Description,
-		Slug:        product.Slug,
-		IsActive:    product.IsActive,
+func parseProjectedFields(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return allowedProductFields, nil
 	}
+
+	parts := strings.Split(raw, ",")
+	fields := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+
+	for _, part := range parts {
+		field := strings.TrimSpace(part)
+		if field == "" {
+			continue
+		}
+		if !slices.Contains(allowedProductFields, field) {
+			return nil, errors.New("invalid fields parameter")
+		}
+		if _, exists := seen[field]; exists {
+			continue
+		}
+		seen[field] = struct{}{}
+		fields = append(fields, field)
+	}
+
+	if len(fields) == 0 {
+		return nil, errors.New("fields parameter must include at least one field")
+	}
+
+	return fields, nil
+}
+
+func toProductResponse(product domain.Product, fields []string) gin.H {
+	resp := gin.H{}
+	for _, field := range fields {
+		switch field {
+		case "id":
+			resp["id"] = product.ID
+		case "name":
+			resp["name"] = product.Name
+		case "description":
+			resp["description"] = product.Description
+		case "slug":
+			resp["slug"] = product.Slug
+		case "isActive":
+			resp["isActive"] = product.IsActive
+		}
+	}
+
+	return resp
 }

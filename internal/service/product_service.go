@@ -21,12 +21,12 @@ func NewProductService(repo repository.ProductRepository) *ProductService {
 	return &ProductService{repo: repo}
 }
 
-func (s *ProductService) ListProducts(ctx context.Context, limit, offset int) ([]domain.Product, error) {
-	return s.repo.FindAll(ctx, limit, offset)
+func (s *ProductService) ListProducts(ctx context.Context, limit, offset int, fields []string) ([]domain.Product, error) {
+	return s.repo.FindAll(ctx, limit, offset, fields)
 }
 
-func (s *ProductService) GetProductByID(ctx context.Context, id int64) (domain.Product, error) {
-	product, err := s.repo.FindByID(ctx, id)
+func (s *ProductService) GetProductByID(ctx context.Context, id int64, fields []string) (domain.Product, error) {
+	product, err := s.repo.FindByID(ctx, id, fields)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Product{}, ErrProductNotFound

@@ -11,3 +11,11 @@ services:
       DATABASE_URL: ${DATABASE_URL}
     ports:
       - "8080:8080"
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+          ignore:
+            - .git/
+            - tmp/
+            - bin/
