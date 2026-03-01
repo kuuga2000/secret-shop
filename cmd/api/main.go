@@ -12,6 +12,9 @@ import (
 
 	"secret-shop/internal/config"
 	"secret-shop/internal/database"
+	"secret-shop/internal/handler"
+	"secret-shop/internal/repository"
+	"secret-shop/internal/service"
 )
 
 func main() {
@@ -54,6 +57,13 @@ func main() {
 			"database": "up",
 		})
 	})
+
+	productRepo := repository.NewPostgresProductRepository(db)
+	productService := service.NewProductService(productRepo)
+	productHandler := handler.NewProductHandler(productService)
+
+	apiV1 := r.Group("/api/v1")
+	productHandler.RegisterRoutes(apiV1)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.AppPort,
