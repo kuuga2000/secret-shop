@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"slices"
 	"strings"
@@ -61,7 +60,6 @@ func (h *ProductHandler) listProducts(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	log.Printf("debug projection: endpoint=listProducts raw_query=%q raw_fields=%q parsed_fields=%v", c.Request.URL.RawQuery, c.Query("fields"), fields)
 
 	products, err := h.service.ListProducts(c.Request.Context(), limit, offset, fields)
 	if err != nil {
@@ -96,7 +94,6 @@ func (h *ProductHandler) getProductByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	log.Printf("debug projection: endpoint=getProductByID product_id=%d raw_query=%q raw_fields=%q parsed_fields=%v", id, c.Request.URL.RawQuery, c.Query("fields"), fields)
 
 	product, err := h.service.GetProductByID(c.Request.Context(), id, fields)
 	if err != nil {
