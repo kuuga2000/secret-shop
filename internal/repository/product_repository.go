@@ -19,6 +19,34 @@ type PostgresProductRepository struct {
 	db *pgxpool.Pool
 }
 
+type productFieldBinding struct {
+	column string
+	target func(*domain.Product) any
+}
+
+var productFieldBindings = map[string]productFieldBinding{
+	"id": {
+		column: "id",
+		target: func(p *domain.Product) any { return &p.ID },
+	},
+	"name": {
+		column: "name",
+		target: func(p *domain.Product) any { return &p.Name },
+	},
+	"description": {
+		column: "description",
+		target: func(p *domain.Product) any { return &p.Description },
+	},
+	"slug": {
+		column: "slug",
+		target: func(p *domain.Product) any { return &p.Slug },
+	},
+	"isActive": {
+		column: "is_active",
+		target: func(p *domain.Product) any { return &p.IsActive },
+	},
+}
+
 func NewPostgresProductRepository(db *pgxpool.Pool) *PostgresProductRepository {
 	return &PostgresProductRepository{db: db}
 }
@@ -83,20 +111,11 @@ func (r *PostgresProductRepository) FindByID(ctx context.Context, id int64, fiel
 func buildProductSelectColumns(fields []string) ([]string, error) {
 	columns := make([]string, 0, len(fields))
 	for _, field := range fields {
-		switch field {
-		case "id":
-			columns = append(columns, "id")
-		case "name":
-			columns = append(columns, "name")
-		case "description":
-			columns = append(columns, "description")
-		case "slug":
-			columns = append(columns, "slug")
-		case "isActive":
-			columns = append(columns, "is_active")
-		default:
+		binding, ok := productFieldBindings[field]
+		if !ok {
 			return nil, fmt.Errorf("unsupported product field: %s", field)
 		}
+		columns = append(columns, binding.column)
 	}
 
 	if len(columns) == 0 {
@@ -109,17 +128,9 @@ func buildProductSelectColumns(fields []string) ([]string, error) {
 func buildScanTargets(product *domain.Product, fields []string) []any {
 	targets := make([]any, 0, len(fields))
 	for _, field := range fields {
-		switch field {
-		case "id":
-			targets = append(targets, &product.ID)
-		case "name":
-			targets = append(targets, &product.Name)
-		case "description":
-			targets = append(targets, &product.Description)
-		case "slug":
-			targets = append(targets, &product.Slug)
-		case "isActive":
-			targets = append(targets, &product.IsActive)
+		binding, ok := productFieldBindings[field]
+		if ok {
+			targets = append(targets, binding.target(product))
 		}
 	}
 

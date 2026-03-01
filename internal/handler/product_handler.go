@@ -29,6 +29,13 @@ type ProductHandler struct {
 }
 
 var allowedProductFields = []string{"id", "name", "description", "slug", "isActive"}
+var productResponseExtractors = map[string]func(domain.Product) any{
+	"id":          func(p domain.Product) any { return p.ID },
+	"name":        func(p domain.Product) any { return p.Name },
+	"description": func(p domain.Product) any { return p.Description },
+	"slug":        func(p domain.Product) any { return p.Slug },
+	"isActive":    func(p domain.Product) any { return p.IsActive },
+}
 
 func NewProductHandler(service ProductService) *ProductHandler {
 	return &ProductHandler{service: service}
@@ -168,17 +175,9 @@ func parseProjectedFields(raw string) ([]string, error) {
 func toProductResponse(product domain.Product, fields []string) gin.H {
 	resp := gin.H{}
 	for _, field := range fields {
-		switch field {
-		case "id":
-			resp["id"] = product.ID
-		case "name":
-			resp["name"] = product.Name
-		case "description":
-			resp["description"] = product.Description
-		case "slug":
-			resp["slug"] = product.Slug
-		case "isActive":
-			resp["isActive"] = product.IsActive
+		extractor, ok := productResponseExtractors[field]
+		if ok {
+			resp[field] = extractor(product)
 		}
 	}
 
