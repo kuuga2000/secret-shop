@@ -61,9 +61,13 @@ func main() {
 	productRepo := repository.NewPostgresProductRepository(db)
 	productService := service.NewProductService(productRepo)
 	productHandler := handler.NewProductHandler(productService)
+	variantRepo := repository.NewPostgresVariantRepository(db)
+	variantService := service.NewVariantService(variantRepo)
+	variantHandler := handler.NewVariantHandler(variantService)
 
 	apiV1 := r.Group("/api/v1")
 	productHandler.RegisterRoutes(apiV1)
+	variantHandler.RegisterRoutes(apiV1)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.AppPort,
@@ -76,6 +80,8 @@ func main() {
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
+
+	log.Printf("server listening on port %s", cfg.AppPort)
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("start server: %v", err)
