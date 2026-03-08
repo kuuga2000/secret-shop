@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,6 +65,8 @@ func (r *PostgresProductRepository) FindAll(ctx context.Context, limit, offset i
 		LIMIT $1 OFFSET $2
 	`, strings.Join(selectColumns, ", "))
 
+	log.Printf("[sql] FindAll fields=%v limit=%d offset=%d query=%q", fields, limit, offset, compactSQL(query))
+
 	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query products: %w", err)
@@ -98,6 +101,8 @@ func (r *PostgresProductRepository) FindByID(ctx context.Context, id int64, fiel
 		FROM products
 		WHERE id = $1
 	`, strings.Join(selectColumns, ", "))
+
+	log.Printf("[sql] FindByID fields=%v id=%d query=%q", fields, id, compactSQL(query))
 
 	var p domain.Product
 	scanTargets := buildScanTargets(&p, fields)
@@ -135,4 +140,8 @@ func buildScanTargets(product *domain.Product, fields []string) []any {
 	}
 
 	return targets
+}
+
+func compactSQL(query string) string {
+	return strings.Join(strings.Fields(query), " ")
 }
