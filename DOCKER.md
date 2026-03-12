@@ -151,3 +151,84 @@ Meaning:
 
 - `sync+restart`: copy changed files and restart the container process.
 - `rebuild`: rebuild image because dependencies or image definition changed.
+
+## Air Hot Reload Notes
+
+### Purpose
+
+Use `Air` inside the development container so Go source changes do not require a full image rebuild.
+
+### Development Docker target with Air
+
+Example:
+
+```dockerfile
+FROM golang:1.26.0-alpine3.22 AS development
+WORKDIR /app
+RUN apk add --no-cache ca-certificates git
+RUN go install github.com/air-verse/air@v1.61.7
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+EXPOSE 8080
+ENTRYPOINT ["air", "-c", ".air.toml"]
+```
+
+### Air config file
+
+File:
+
+```toml
+.air.toml
+```
+
+Purpose:
+
+- Build the app into `./tmp/api`
+- Restart automatically when Go files change
+- Keep temporary build artifacts inside `tmp/`
+
+### Compose watch behavior with Air
+
+Recommended idea:
+
+```yaml
+develop:
+  watch:
+    - action: sync
+      path: ./cmd
+      target: /app/cmd
+    - action: sync
+      path: ./internal
+      target: /app/internal
+    - action: rebuild
+      path: ./go.mod
+    - action: rebuild
+      path: ./go.sum
+```
+
+Meaning:
+
+- `sync`: just copy files into the container
+- `Air` inside the container notices the change and restarts the app
+- `rebuild` is still needed for dependency changes
+
+### Commands for Air workflow
+
+Build and start:
+
+```bash
+docker compose up -d --build secret_app
+```
+
+Start watch:
+
+```bash
+docker compose watch
+```
+
+View logs:
+
+```bash
+docker compose logs -f secret_app
+```

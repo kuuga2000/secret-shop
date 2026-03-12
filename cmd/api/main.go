@@ -61,11 +61,15 @@ func main() {
 	productRepo := repository.NewPostgresProductRepository(db)
 	productService := service.NewProductService(productRepo)
 	productHandler := handler.NewProductHandler(productService)
+	customerRepo := repository.NewPostgresCustomerRepository(db)
+	authService := service.NewAuthService(customerRepo, cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAccessTokenMinutes)
+	authHandler := handler.NewAuthHandler(authService)
 	variantRepo := repository.NewPostgresVariantRepository(db)
 	variantService := service.NewVariantService(variantRepo)
 	variantHandler := handler.NewVariantHandler(variantService)
 
 	apiV1 := r.Group("/api/v1")
+	authHandler.RegisterRoutes(apiV1)
 	productHandler.RegisterRoutes(apiV1)
 	variantHandler.RegisterRoutes(apiV1)
 

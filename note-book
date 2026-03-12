@@ -350,3 +350,37 @@ orders(customer_id, status)
 order_items(order_id)
 Consider order_items.product_variant_id as NOT NULL for cart/order history integrity (recommended for ecommerce).
 If you want, next step I can draft exact GraphQL SDL + resolver/service method signatures matching your folders (domain, repository, service, handler/graphql).
+
+Yes, better to do customer auth now before adding many product endpoints.
+
+Recommended order:
+
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+GET /api/v1/me
+PATCH /api/v1/me (profile update)
+PATCH /api/v1/me/password
+Why first:
+
+Cart, checkout, orders, and address book depend on authenticated customer identity.
+You avoid redesigning product/cart APIs later around auth.
+Minimal stack:
+
+customers table (email unique, password_hash, name, phone, is_active, timestamps)
+Password hashing: bcrypt
+Auth: JWT access token (short TTL) + refresh token (recommended)
+Middleware to set customer ID from token
+If you want, I can scaffold this in secret-shop step-by-step starting with register + login.
+
+docker compose up -d --build secret_app
+docker compose watch
+
+docker compose -f /home/guosong/dev/secret-shop/docker-compose.yml up -d --build secret_app
+docker ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'
+docker logs --tail 80 secret_store
+
+docker compose up -d --build secret_app
+docker compose logs -f secret_app
+curl "http://127.0.0.1:8080/api/v1/products?fields=id,name,description"
+docker ps
+docker compose logs --tail 100 secret_app
