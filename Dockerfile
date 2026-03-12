@@ -8,6 +8,16 @@ COPY . .
 RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=mod -o /bin/api ./cmd/api
 
+FROM golang:1.26.0-alpine3.22 AS development
+WORKDIR /app
+RUN apk add --no-cache ca-certificates git
+RUN go install github.com/air-verse/air@v1.61.7
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+EXPOSE 8080
+ENTRYPOINT ["air", "-c", ".air.toml"]
+
 # Development runtime: uses Alpine for local debugging/exec. For production, switch to a distroless image.
 FROM alpine:3.22
 WORKDIR /app

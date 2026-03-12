@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     container_name: secret_store
     restart: unless-stopped
     environment:
@@ -13,9 +14,21 @@ services:
       - "8080:8080"
     develop:
       watch:
+        - action: sync
+          path: ./cmd
+          target: /app/cmd
+        - action: sync
+          path: ./internal
+          target: /app/internal
+        - action: sync
+          path: ./.air.toml
+          target: /app/.air.toml
+        - action: sync
+          path: ./migrations
+          target: /app/migrations
         - action: rebuild
-          path: .
-          ignore:
-            - .git/
-            - tmp/
-            - bin/
+          path: ./go.mod
+        - action: rebuild
+          path: ./go.sum
+        - action: rebuild
+          path: ./Dockerfile
