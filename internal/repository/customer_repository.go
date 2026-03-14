@@ -12,7 +12,10 @@ import (
 
 type CustomerRepository interface {
 	Create(ctx context.Context, customer domain.Customer) (domain.Customer, error)
+	FindByID(ctx context.Context, id int64) (domain.Customer, error)
 	FindByEmail(ctx context.Context, email string) (domain.Customer, error)
+	UpdateProfile(ctx context.Context, customer domain.Customer) (domain.Customer, error)
+	UpdatePassword(ctx context.Context, id int64, passwordHash string) error
 	UpdateLastLoginAt(ctx context.Context, id int64) error
 }
 
@@ -87,6 +90,86 @@ func (r *PostgresCustomerRepository) FindByEmail(ctx context.Context, email stri
 	}
 
 	return customer, nil
+}
+
+func (r *PostgresCustomerRepository) FindByID(ctx context.Context, id int64) (domain.Customer, error) {
+	query := `
+		SELECT id, email, password_hash, firstname, lastname, phone, is_active, email_verified_at, last_login_at, created_at, updated_at
+		FROM customers
+		WHERE id = $1
+	`
+
+	var customer domain.Customer
+	if err := r.db.QueryRow(ctx, query, id).Scan(
+		&customer.ID,
+		&customer.Email,
+		&customer.PasswordHash,
+		&customer.Firstname,
+		&customer.Lastname,
+		&customer.Phone,
+		&customer.IsActive,
+		&customer.EmailVerifiedAt,
+		&customer.LastLoginAt,
+		&customer.CreatedAt,
+		&customer.UpdatedAt,
+	); err != nil {
+		return domain.Customer{}, fmt.Errorf("find customer by id: %w", err)
+	}
+
+	return customer, nil
+}
+
+func (r *PostgresCustomerRepository) UpdateProfile(ctx context.Context, customer domain.Customer) (domain.Customer, error) {
+	query := `
+		UPDATE customers
+		SET firstname = $2,
+		    lastname = $3,
+		    phone = $4,
+		    updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, email, password_hash, firstname, lastname, phone, is_active, email_verified_at, last_login_at, created_at, updated_at
+	`
+
+	var updated domain.Customer
+	if err := r.db.QueryRow(
+		ctx,
+		query,
+		customer.ID,
+		customer.Firstname,
+		customer.Lastname,
+		customer.Phone,
+	).Scan(
+		&updated.ID,
+		&updated.Email,
+		&updated.PasswordHash,
+		&updated.Firstname,
+		&updated.Lastname,
+		&updated.Phone,
+		&updated.IsActive,
+		&updated.EmailVerifiedAt,
+		&updated.LastLoginAt,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	); err != nil {
+		return domain.Customer{}, fmt.Errorf("update customer profile: %w", err)
+	}
+
+	return updated, nil
+}
+
+func (r *PostgresCustomerRepository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	query := `
+		UPDATE customers
+		SET password_hash = $2,
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+
+	if _, err := r.db.Exec(ctx, query, id, passwordHash); err != nil {
+		return fmt.Errorf("update customer password: %w", err)
+	}
+
+	return nil
 }
 
 func (r *PostgresCustomerRepository) UpdateLastLoginAt(ctx context.Context, id int64) error {

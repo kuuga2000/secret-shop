@@ -64,12 +64,16 @@ func main() {
 	customerRepo := repository.NewPostgresCustomerRepository(db)
 	authService := service.NewAuthService(customerRepo, cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAccessTokenMinutes)
 	authHandler := handler.NewAuthHandler(authService)
+	customerService := service.NewCustomerService(customerRepo)
+	meHandler := handler.NewMeHandler(customerService)
 	variantRepo := repository.NewPostgresVariantRepository(db)
 	variantService := service.NewVariantService(variantRepo)
 	variantHandler := handler.NewVariantHandler(variantService)
+	authMiddleware := handler.AuthMiddleware(cfg.JWTSecret, cfg.JWTIssuer)
 
 	apiV1 := r.Group("/api/v1")
 	authHandler.RegisterRoutes(apiV1)
+	meHandler.RegisterRoutes(apiV1, authMiddleware)
 	productHandler.RegisterRoutes(apiV1)
 	variantHandler.RegisterRoutes(apiV1)
 
@@ -85,7 +89,7 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("server listening on port %s", cfg.AppPort)
+	log.Printf("server listening xon port %s", cfg.AppPort)
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("start server: %v", err)

@@ -113,18 +113,7 @@ func (h *AuthHandler) login(c *gin.Context) {
 func authResponse(result service.AuthResult) gin.H {
 	response := gin.H{
 		"accessToken": result.AccessToken,
-		"customer": gin.H{
-			"id":        result.Customer.ID,
-			"email":     result.Customer.Email,
-			"firstname": result.Customer.Firstname,
-			"lastname":  result.Customer.Lastname,
-			"phone":     result.Customer.Phone,
-			"isActive":  result.Customer.IsActive,
-		},
-	}
-
-	if result.Customer.LastLoginAt != nil {
-		response["customer"].(gin.H)["lastLoginAt"] = result.Customer.LastLoginAt
+		"customer":    toCustomerResponse(result.Customer),
 	}
 
 	return gin.H{"data": response}
